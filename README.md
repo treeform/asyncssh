@@ -6,11 +6,15 @@ for their results.
 
 ## Example:
 
+If you just want to run a command and see its output:
+
 ```nim
 var (output, code) = await execSSHCmd("root", "127.0.0.1", "uptime")
 echo output
 echo code
 ```
+
+If you want to start a process which can be killed:
 
 ```nim
 var p2 = newAsyncSSHProcess("root", "127.0.0.1", "uptime")
