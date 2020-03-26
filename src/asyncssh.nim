@@ -28,14 +28,14 @@ type
 proc newAsyncSSHProcess*(
     username: string,
     hostname: string,
-    command: string,  
+    command: string,
     password = "",
     port = 22,
     pubkeyFile = "~/.ssh/id_rsa.pub",
     privkeyFile = "~/.ssh/id_rsa",
-    knownHostFile = "~/.ssh/known_hosts" 
+    knownHostFile = "~/.ssh/known_hosts"
   ): AsyncSSHProcess  =
-  ## Starts an async SSH process, call .exec() on it to start 
+  ## Starts an async SSH process, call .exec() on it to start
   result = AsyncSSHProcess()
   result.username = username
   result.hostname = hostname
@@ -46,7 +46,7 @@ proc newAsyncSSHProcess*(
   result.pubkeyFile = pubkeyFile.expandTilde
   result.privkeyFile = privkeyFile.expandTilde
   result.knownHostFile = knownHostFile.expandTilde
-  
+
 
 
 proc kill*(p: AsyncSSHProcess) =
@@ -64,9 +64,9 @@ proc kill*(p: AsyncSSHProcess) =
 
 proc exec*(p: AsyncSSHProcess) {.async.} =
   ## Runs the SSH proces
-  
+
   proc error(msg: string, code: int) {.noreturn.} =
-    if not p.killed: 
+    if not p.killed:
       raise newException(AsyncSSHError, msg & " Code: " & $code)
 
   if p.running:
@@ -105,7 +105,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
   p.session.sessionSetBlocking(0)
 
   while true:
-    await sleepAsync(0)    
+    await sleepAsync(0)
     if p.killed: return
     rc = p.session.sessionHandshake(p.sock.getFd())
     if rc != LIBSSH2_ERROR_EAGAIN:
@@ -125,7 +125,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
 
   if p.killed: return
   rc = knownHosts.knownHostReadfile(
-    p.knownHostFile, 
+    p.knownHostFile,
     LIBSSH2_KNOWNHOST_FILE_OPENSSH
   )
   if rc < 0:
@@ -138,30 +138,30 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
   if fingerprint.isNil:
     p.kill()
     error("Unable to fetch hostkey", 0)
-    
+
 
   var host: knownhost_st
   let check = knownHosts.knownHostCheckP(
-    p.hostname, 
-    22, 
-    fingerprint, 
-    length, 
-    LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW or LIBSSH2_KNOWNHOST_KEY_SSHRSA, 
+    p.hostname,
+    22,
+    fingerprint,
+    length,
+    LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW or LIBSSH2_KNOWNHOST_KEY_SSHRSA,
     addr host
   )
 
   case check:
-    of LIBSSH2_KNOWNHOST_CHECK_FAILURE: 
+    of LIBSSH2_KNOWNHOST_CHECK_FAILURE:
       error("Something prevented the check to be made.", check)
     of LIBSSH2_KNOWNHOST_CHECK_NOTFOUND:
       # no host match was found
       rc = knownHosts.knownHostAddC(
-        p.hostname, 
-        nil, 
-        fingerprint, 
-        length, 
+        p.hostname,
         nil,
-        0, 
+        fingerprint,
+        length,
+        nil,
+        0,
         LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW or LIBSSH2_KNOWNHOST_KEY_SSHRSA,
         nil
       )
@@ -169,18 +169,18 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
         knownHosts.knownHostWritefile(p.knownHostFile, LIBSSH2_KNOWNHOST_FILE_OPENSSH)
       else:
         error("Failed to add knownhost.", rc)
-    of LIBSSH2_KNOWNHOST_CHECK_MATCH: 
+    of LIBSSH2_KNOWNHOST_CHECK_MATCH:
       # hosts and keys match.
       discard
     of LIBSSH2_KNOWNHOST_CHECK_MISMATCH:
-      error("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!", check) 
+      error("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!", check)
     else:
       error("Unkown knownHosts error!", check)
   knownHosts.knownHostFree()
 
   if p.password.len > 0:
     while true:
-      await sleepAsync(0)      
+      await sleepAsync(0)
       rc = p.session.userauthPassword(p.username, p.password, nil)
       if rc != LIBSSH2_ERROR_EAGAIN:
         break
@@ -188,7 +188,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
     if rc != 0:
       p.kill()
       error("Authentication by password failed!", rc)
-      
+
   else:
     while true:
       await sleepAsync(0)
@@ -199,13 +199,13 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
     if rc != 0:
       p.kill()
       error("Authentication by public key failed!", rc)
-      
+
 
   var channel: Channel
   while true:
     await sleepAsync(0)
     channel = p.session.channelOpenSession()
-    if channel.isNil and p.session.sessionLastError(nil, 0, 0) == LIBSSH2_ERROR_EAGAIN:
+    if channel.isNil and p.session.sessionLastError(nil, nil, 0) == LIBSSH2_ERROR_EAGAIN:
       discard waitsocket(p.sock.getFd(), p.session)
     else:
       break
@@ -213,7 +213,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
   if channel.isNil:
     p.kill()
     error("Unable to open a session", rc)
-    
+
   while true:
     await sleepAsync(0)
     rc = channel.channelExec(p.command)
@@ -222,7 +222,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
 
   if rc != 0:
     p.kill()
-    error("Failed exec.", rc)    
+    error("Failed exec.", rc)
 
   var bytecount = 0
   p.output = ""
@@ -231,14 +231,14 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
     var buffer: array[0..1024, char]
     rc = channel.channelRead(addr buffer, buffer.len)
     if rc > 0:
-      bytecount += rc      
-      for i in 0..rc-1:        
-        p.output.add buffer[i]   
+      bytecount += rc
+      for i in 0..rc-1:
+        p.output.add buffer[i]
     elif rc == LIBSSH2_ERROR_EAGAIN:
       discard waitsocket(p.sock.getFd(), p.session)
     else:
       break
-    
+
   var exitCode = 127
   while true:
     await sleepAsync(0)
@@ -267,12 +267,12 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
 proc execSSHCmd*(
   username: string,
   hostname: string,
-  command: string,  
+  command: string,
   password = "",
   port = 22,
   pubkeyFile = "~/.ssh/id_rsa.pub",
   privkeyFile = "~/.ssh/id_rsa",
-  knownHostFile = "~/.ssh/known_hosts" 
+  knownHostFile = "~/.ssh/known_hosts"
 ): Future[tuple[output: string, exitCode: int]] {.async.} =
   ## Runs a command on an host
   var p = newAsyncSSHProcess(

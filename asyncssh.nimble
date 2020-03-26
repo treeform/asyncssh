@@ -8,5 +8,4 @@ license       = "MIT"
 # Dependencies
 
 requires "nim >= 1.0.0"
-requires "libssh2 >= 0.1.2"
-
+requires "libssh2 >= 0.1.4"
