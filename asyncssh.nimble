@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "Andre von Houck"
 description   = "SSH and run commands on other servers asynchronously."
 license       = "MIT"
