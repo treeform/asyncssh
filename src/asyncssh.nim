@@ -201,7 +201,7 @@ proc exec*(p: AsyncSSHProcess) {.async.} =
       error("Authentication by public key failed!", rc)
 
 
-  var channel: Channel
+  var channel: libssh2.Channel
   while true:
     await sleepAsync(0)
     channel = p.session.channelOpenSession()
